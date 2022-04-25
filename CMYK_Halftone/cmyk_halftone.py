@@ -40,6 +40,7 @@ class CMYK_Halftone(vsketch.SketchClass):
     use_k_channel = vsketch.Param(False)  # not working with PIL
     pen_width = vsketch.Param(0.3, unit="mm", step=0.05)
     max_radius = vsketch.Param(0.7)
+    hatch_fill = vsketch.Param(True)
 
     def draw(self, vsk: vsketch.Vsketch) -> None:
         vsk.size("a4", landscape=(self.orient == "landscape"), center=self.center)
@@ -51,7 +52,7 @@ class CMYK_Halftone(vsketch.SketchClass):
         else:
             page_w, page_h = vp.convert_page_size("a4")
 
-        img = Image.open(IMG_PATH).convert("RGBA")
+        img = Image.open(self.image).convert("RGBA")
         x_pixels, y_pixels = img.size
 
         # Number of vertical steps
@@ -86,7 +87,8 @@ class CMYK_Halftone(vsketch.SketchClass):
 
             # Set color layer
             vsk.stroke(i + 1)
-            vsk.fill(i + 1)
+            if self.hatch_fill:
+                vsk.fill(i + 1)
 
             # Rotate image
             img_r = ndimage.rotate(img_array, angle)
