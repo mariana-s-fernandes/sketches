@@ -15,7 +15,7 @@ CMYK_COLORS = [(0, 255, 255), (255, 0, 255), (255, 255, 0)]
 ext = ["jpg", "png"]
 images = []
 [images.extend(glob.glob("*." + e)) for e in ext]
-IMG_PATH = "mountains.jpg"
+IMG_PATH = "portrait.jpg"
 
 
 def cmyk_radius(value, maxRadius):
@@ -29,22 +29,52 @@ def map_range(value, start1, stop1, start2, stop2):
     return (value - start1) / (stop1 - start1) * (stop2 - start2) + start2
 
 
+def spiral(vsk: vsketch, radius, turns=4, n_segms=100):
+    """Draws a spiral"""
+    if np.floor(radius) == 0:
+        return
+    t = np.linspace(0, turns * 2 * np.pi, n_segms)
+    r = np.linspace(radius, 0, n_segms)
+    x = r * np.sin(t)
+    y = r * np.cos(t)
+    vsk.polygon(x, y)
+
+
+def draw_spiral(vsk, radius, pen_width, n_segms=100):
+    """Draws a spiral with number of turns dependent on pen width"""
+    if radius > pen_width:
+        turns = radius / pen_width
+        spiral(vsk, radius, turns, n_segms)
+    elif radius > 0:
+        vsk.point(0, 0)
+
+
+def draw_circle(vsk, radius, pen_width):
+    if radius > pen_width:
+        vsk.circle(0, 0, radius=radius, mode="center")
+    elif radius > 0:
+        vsk.point(0, 0)
+
+
 class CMYK_Halftone(vsketch.SketchClass):
     # Sketch parameters:
     page_size = vsketch.Param("a4", choices=PAGE_SIZES)
     image = vsketch.Param(IMG_PATH, choices=images)
-    orient = vsketch.Param("landscape", choices=["portrait", "landscape"])
+    orient = vsketch.Param("portrait", choices=["portrait", "landscape"])
     center = vsketch.Param(True)
-    num_x = vsketch.Param(100, 1)
+    num_x = vsketch.Param(80, 1)
     scale = vsketch.Param(0.8)
     use_k_channel = vsketch.Param(False)  # not working with PIL
-    pen_width = vsketch.Param(0.3, unit="mm", step=0.05)
-    max_radius = vsketch.Param(0.7)
-    hatch_fill = vsketch.Param(True)
+    pen_width = vsketch.Param(0.40, unit="mm", step=0.05)
+    max_radius = vsketch.Param(0.95)
+    mode = vsketch.Param("spiral", choices=["spiral", "circle"])
+    spiral_n_segms = vsketch.Param(100)  # spirals definition
 
     def draw(self, vsk: vsketch.Vsketch) -> None:
         vsk.size("a4", landscape=(self.orient == "landscape"), center=self.center)
         vsk.penWidth(self.pen_width)
+
+        pen_width = vsk.strokePenWidth
 
         # Gets page size
         if self.orient == "landscape":
@@ -70,7 +100,6 @@ class CMYK_Halftone(vsketch.SketchClass):
 
         # Max circle radius
         max_radius = int(round(self.max_radius * final_x / (2 * max_size)))
-
         print("Page size:", page_w, page_h)
         print("Final image size:", final_x)
         print("Pixels:", self.num_x, num_y)
@@ -87,8 +116,6 @@ class CMYK_Halftone(vsketch.SketchClass):
 
             # Set color layer
             vsk.stroke(i + 1)
-            if self.hatch_fill:
-                vsk.fill(i + 1)
 
             # Rotate image
             img_r = ndimage.rotate(img_array, angle)
@@ -124,7 +151,19 @@ class CMYK_Halftone(vsketch.SketchClass):
                     # Rotate image and add circle to sketch
                     with vsk.pushMatrix():
                         vsk.rotate(angle, degrees=True)
-                        vsk.circle(pos_x, pos_y, radius=circle_size, mode="center")
+                        vsk.translate(pos_x, pos_y)
+
+                        # Draw spirals
+                        if self.mode == "spiral":
+                            draw_spiral(
+                                vsk,
+                                radius=circle_size,
+                                pen_width=pen_width,
+                                n_segms=self.spiral_n_segms,
+                            )
+                        # Draw circles
+                        else:
+                            draw_circle(vsk, radius=circle_size, pen_width=pen_width)
 
         # Define CMYK layer colors
         vsk.vpype("color --layer 1  #00FFFF")
