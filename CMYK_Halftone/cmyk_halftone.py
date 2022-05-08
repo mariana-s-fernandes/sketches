@@ -71,16 +71,16 @@ class CMYK_Halftone(vsketch.SketchClass):
     spiral_n_segms = vsketch.Param(100)  # spirals definition
 
     def draw(self, vsk: vsketch.Vsketch) -> None:
-        vsk.size("a4", landscape=(self.orient == "landscape"), center=self.center)
+        vsk.size(self.page_size, landscape=(self.orient == "landscape"), center=self.center)
         vsk.penWidth(self.pen_width)
 
         pen_width = vsk.strokePenWidth
 
         # Gets page size
         if self.orient == "landscape":
-            page_h, page_w = vp.convert_page_size("a4")
+            page_h, page_w = vp.convert_page_size(self.page_size)
         else:
-            page_w, page_h = vp.convert_page_size("a4")
+            page_w, page_h = vp.convert_page_size(self.page_size)
 
         img = Image.open(self.image).convert("RGBA")
         x_pixels, y_pixels = img.size
